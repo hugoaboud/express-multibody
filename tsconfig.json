@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": [
+      "ES2020"
+    ],
+    "declaration": false,
+    "removeComments": false,
+    "outDir": "./dist",
+    "strict": true,
+    "types": [
+      "node",
+      "jest"
+    ],
+    "incremental": true,
+    "moduleResolution": "node",
+    "strictNullChecks": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src",
+    "test",
+    "bundle.mjs",
+    "eslint.config.mjs"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
