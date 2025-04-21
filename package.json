@@ -1,7 +1,7 @@
 {
   "name": "express-multibody",
   "version": "1.0.0",
-  "description": "Express middleware for handling multipart and json data similarly",
+  "description": "Express middleware which parses different types of content into the request body",
   "main": "index.js",
   "scripts": {
     "build": "tsc --p tsconfig.build.json",

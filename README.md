@@ -1,6 +1,6 @@
 # express-multibody
 
-A [express](https://github.com/expressjs/express) middleware which parses different types of content into the request `body`.
+[express](https://github.com/expressjs/express) middleware which parses different types of content into the request `body`
 
 <!-- vscode-markdown-toc -->
 * 1. [Supported Content-Types](#SupportedContent-Types)
@@ -26,8 +26,8 @@ A [express](https://github.com/expressjs/express) middleware which parses differ
 
 - `application/json`: Uses the builtin JSON parser to parse the request stream;
 - `multipart/form-data`: Uses `busboy` to parse the request stream, then builds a possibly-complex object according to the naming structure described [below](#FormData);
-  - Files are also processed and included on the body according to the same naming structure.
-  - Files can be parsed by a custom method provided in the `config` argument.
+  - Files are also processed and included on the body according to the same naming structure;
+  - Files can be parsed by a custom method provided in the `config` argument;
 
 ##  2. <a name='Usage'></a>Usage
 
@@ -37,29 +37,37 @@ Install with `npm`:
 npm i express-multibody
 ```
 
-Import and use it on the express app:
+Import and `use` it on the express app:
 
 ```typescript
 import express from 'express'
 import multibody from 'express-multibody'
 
-const app = express.app();
-app.use(multibody({
-    // config
-}))
-```
+const app = express();
+app.use(multibody())
 
-The contents should be available at the `req.body` of the route:
-
-```typescript
 app.post('/', (req, res) => {
-    // req.body
+    req.body // Request data, regardless of Content-Type
+})
+
+app.listen(3420, () => {
+    console.log('Server running');
 })
 ```
 
-This object also contains references to the uploaded files, which are saved into a temporary directory with a random UUID.
+> `req.body` also contains references to the uploaded files, which are saved into a temporary directory with a random UUID.
 
 ##  3. <a name='Configuration'></a>Configuration
+
+You can pass a configuration object to `multipart` with a few options:
+
+```typescript
+app.use(multibody({
+    ...
+}))
+```
+
+With the options below:
 
 ```typescript
 export interface MultibodyConfig<File = any> {
