@@ -10,6 +10,14 @@ type FormDataField<T = string> = {
     value: T
 }
 
+type FormDataPart = {
+    path: {
+        p: string,
+        new_item?: boolean // []: undefined, [^]: true, [~]: false
+    }[]
+    value: string
+}
+
 /**
  * Utility class for dealing with `multipart/form-data` requests.
  */
@@ -28,8 +36,8 @@ export class MultibodyFormData {
     }> {
         return new Promise(resolve => {
     
-            const fields: FormDataField[] = []
-            const filePromises: Promise<FormDataField<File>>[] = []
+            const fields: FormDataField[] = [];
+            const filePromises: Promise<FormDataField<File>>[] = [];
 
             // Flags to stop the parsing process
             let isParsing = true;
@@ -40,7 +48,7 @@ export class MultibodyFormData {
             const attemptFinish = () => {
                 if (isParsing || isWritingTo.size > 0) return;
                 resolve({ fields, filePromises });
-            }
+            };
 
             const bb = busboy({
                 ...(config?.formdata || {}),
@@ -72,7 +80,7 @@ export class MultibodyFormData {
 
                  
                 file.on('data', (data: any) => {
-                    fileStream.write(data)
+                    fileStream.write(data);
                 })
                     .on('end', () => {
                         fileStream.close(() => {
@@ -82,15 +90,17 @@ export class MultibodyFormData {
                             if (config?.files?.parse) {
                                 field = config.files.parse(name, filepath, original, req).then(file => (
                                     { name, value: file }
-                                ))
+                                ));
                             }
                             // Default file parsing
                             else {
-                                const _delete = () => { if (fs.existsSync(filepath)) fs.rmSync(filepath) }
+                                const _read = () => { fs.readFileSync(filepath); };
+                                const _delete = () => { if (fs.existsSync(filepath)) fs.rmSync(filepath); };
                                 field = Promise.resolve({
                                     name,
                                     value: {
                                         filepath,
+                                        read: _read,
                                         delete: _delete
                                     }
                                 });
@@ -102,14 +112,14 @@ export class MultibodyFormData {
                             // Attempt to finish
                             isWritingTo.delete(tmpFilename);
                             attemptFinish();
-                        })
-                    })
+                        });
+                    });
             })
                 .on('field', function(name: string, value: string) {
                     fields.push({
                         name,
                         value
-                    })
+                    });
                 })
                 .on('finish', function() {
                     isParsing = false;
@@ -119,11 +129,11 @@ export class MultibodyFormData {
             // Express -> busboy
             req.on('data', chunk => {
                 bb.write(chunk);
-            })
+            });
             req.on('end', () => {
-                bb.end()
-            })
-        })
+                bb.end();
+            });
+        });
     }
 
     /**
@@ -135,22 +145,26 @@ export class MultibodyFormData {
      */
     public static inject(fields: FormDataField<any>[], to: Record<string, any>) {
 
-        // Furn fields into parts, with array paths
-
-        const parts: {
-            path: string[]
-            value: any
-        }[] = [];
         
+        const parts: FormDataPart[] = [];
+        
+        // Extract paths from fields, and assemble a parts array
         for (const field of fields) {
-            let path = field.name.split('[')
+            let path: FormDataPart['path'] = field.name.split('[')
                 .map(p => {
                     if (p[p.length-1] === ']') p = p.slice(0,-1);
-                    if (p === '') p = '[]'
-                    return p;
-                })
-            if (path[0] === '[]') {
+                    const new_item = p === '^' ? true : p === '~' ? false : undefined;
+                    if (p === '' || p === '^' || p === '~') p = '[]';
+                    return { p, new_item };
+                });
+            // If the field name starts without [, the first term is removed
+            if (path[0].p === '[]') {
                 path = path.slice(1);
+            }
+            // If the final term of the path is an array, force infer of array item
+            const final = path.at(-1);
+            if (final?.p === '[]') {
+                final.new_item = true;
             }
             parts.push({
                 path,
@@ -159,35 +173,57 @@ export class MultibodyFormData {
         }
 
         // Inject each part into the object
-
         for (const part of parts) {
 
+            // "Pointer" to the parent of the property being iterated
             let ref: Record<string|number, any> = to;
 
             for (let i = 0; i < part.path.length; i++) {
-                const p = part.path[i];
+                const p = part.path[i].p;
+                const next_p = part.path[i+1]?.p;
                 const is_last = i === part.path.length-1;
                 
-                // Object key
+                // p is a `value` or `object`
                 if (p !== '[]') {
+                    // last p, set value
                     if (is_last) ref[p] = part.value;
+                    // not last p, create placeholder and move pointer
                     else {
                         ref[p] ??= {};
-                        if (part.path[i+1] === '[]' && !Array.isArray(ref[p])) ref[p] = [];
+                        if (next_p === '[]' && !Array.isArray(ref[p])) ref[p] = [];
                         ref = ref[p];
                     }
                 }
-                // Array
+                // p is an `array`
                 else {
                     const cur = ref[ref.length-1];
-                    const next_p = part.path[i+1]
 
-                    if (!cur || typeof cur !== 'object' || !next_p || (i >= part.path.length-2 && next_p in cur)) {
-                        if (part.path[i+1] === '[]') ref.push([]);
-                        else ref.push({});
-                    }
+                    // Check if a new item should be added to the array
+                    // before setting the value.
+                    // This can be done explicitly, if the [] contains ^ or ~,
+                    // or implicitly, then the code infers from some rules.
 
+                    // not explicit iter
+                    if (!(part.path[i].new_item === false))  {{
+                        if (
+                            // explicit new
+                            part.path[i].new_item === true ||
+                            
+                            // infer, new if:
+                            // - Item doesn't exist (empty list); or
+                            // - Item is not an object; or
+                            // - P is the last; or
+                            // - Next p is final and included on current object
+                            (!cur || typeof cur !== 'object' || is_last || (i == part.path.length-2 && next_p in cur))
+                        ) {
+                            if (next_p === '[]') ref.push([]);
+                            else ref.push({});
+                        }
+                    }}
+
+                    // last p, set value
                     if (is_last) ref[ref.length-1] = part.value;
+                    // not last p, move pointer
                     else ref = ref[ref.length-1];
                 }
             }

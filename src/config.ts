@@ -1,8 +1,9 @@
-import busboy from 'busboy'
-import { Request } from 'express'
+import busboy from 'busboy';
+import { Request } from 'express';
 
-type MultibodyFile = {
+export type MultibodyFile = {
     filepath: string,
+    read: () => Buffer
     delete: () => void
 }
 

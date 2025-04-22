@@ -1,6 +1,6 @@
 # express-multibody
 
-[express](https://github.com/expressjs/express) middleware which parses different types of content into the request `body`
+[express](https://github.com/expressjs/express) middleware which parses different types of content into a `body` object
 
 <!-- vscode-markdown-toc -->
 * 1. [Supported Content-Types](#SupportedContent-Types)
@@ -13,8 +13,11 @@
 	* 5.3. [Objects with nested properties](#Objectswithnestedproperties)
 	* 5.4. [Arrays](#Arrays)
 	* 5.5. [Object Arrays](#ObjectArrays)
+		* 5.5.1. [Explicit Array Operators](#ExplicitArrayOperators)
 	* 5.6. [Complex Objects](#ComplexObjects)
-* 6. [Contributing](#Contributing)
+	* 5.7. [Files](#Files)
+* 6. [FormObj](#FormObj)
+* 7. [Contributing](#Contributing)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -59,7 +62,7 @@ app.listen(3420, () => {
 
 ##  3. <a name='Configuration'></a>Configuration
 
-You can pass a configuration object to `multipart` with a few options:
+You can pass a configuration object to `multibody` with a few options:
 
 ```typescript
 app.use(multibody({
@@ -230,10 +233,62 @@ prop1[][a]='value3'
 }
 ```
 
-> The parsing of object arrays is performed sequentially (given that FormData parts ordering is guaranteed).
-> When inserting a new key into an array item, the last object of the array is checked. If it includes the key, a new object is created and pushed to the array, where the key will be inserted.
->
-> This means you should fully serialize each object before starting the next one when dumping.
+####  5.5.1. <a name='ExplicitArrayOperators'></a>Explicit Array Operators
+
+At this point, the definition above is not enough to solve some ambiguities. For example:
+
+```typescript
+prop1[][a]='value1'
+prop1[][b]='value2'
+prop1[][c]='value3'
+
+// Which of the below should be accepted as correct?
+{
+    prop1: [
+        { a: 'value1' },
+        { b: 'value2' },
+        { c: 'value3' },
+    ]
+}
+{
+    prop1: [
+        { a: 'value1', b: 'value2' },
+        { c: 'value3' },
+    ]
+}
+...
+{
+    prop1: [
+        { a: 'value1', b: 'value2', c: 'value3' }
+    ]
+}
+```
+
+Everytime a property is added to an array field, we must decide whether to add it as a new item on the array or add it as a property to the current last item.
+
+This can be done explicitly with the `Array Operators`:
+- `^`: Should add a new item to the array
+- `~`: Should add to last item of array
+
+```typescript
+prop1[^][a]='value1'
+prop1[~][b]='value2'
+prop1[^][c]='value3'
+
+{
+    prop1: [
+        { a: 'value1', b: 'value2' },
+        { c: 'value3' },
+    ]
+}
+```
+
+If not specified, the library will infer by itself (which can lead to undesired behavior as shown above).
+A new item is added to the array on any of the four scenarios below:
+- Array is currently empty
+- Last item of the array is a string
+- Array is a leaf of the object
+- Last item already includes the property being added
 
 ###  5.6. <a name='ComplexObjects'></a>Complex Objects
 
@@ -275,7 +330,89 @@ prop1[b][e][][][f]='value10'
 }
 ```
 
-##  6. <a name='Contributing'></a>Contributing
+###  5.7. <a name='Files'></a>Files
+
+Files can be inserted at any point of the object tree, just like other fields.
+
+The file is uploaded to a temporary directory, with a random UUID as filename, and a reference to it is inserted on the body.
+
+```typescript
+prop1={binary}
+prop2[a]={binary}
+prop2[b][]={binary}
+prop2[b][]={binary}
+
+{
+    prop1: {
+        filepath: '...', read(), delete()
+    },
+    prop2: {
+        a: {
+            filepath: '...', read(), delete()
+        },
+        b: [
+            {
+                filepath: '...', read(), delete()
+            },
+            {
+                filepath: '...', read(), delete()
+            }
+        ]
+    }
+}
+```
+
+The file reference contains the _filepath_ and 2 helper methods:
+- `read` read the temporary file contents from disk
+- `delete` delete the temporary file from disk
+
+##  6. <a name='FormObj'></a>FormObj
+
+The library offers a class `FormObj` which can be used on a JS client to dump an object into `FormData` following the syntax described above.
+
+This allows a seamless transfer of data containing files: Client sends an object containing values and files, files are uploaded and the request body is assembled with references to the files on server.
+
+```typescript
+import { FormObj } from 'express-multibody/client/formobj';
+
+const formdata = new FormObj({
+    prop1: 'value1',
+    prop2: <Blob>,
+    prop3: [
+        'value2',
+        <Blob>,
+        [
+            'value4',
+            <Blob>
+        ],
+        {
+            nested1: 'value4',
+            nested2: <Blob>
+        }
+    ],
+    prop4: {
+        nested1: 'value5',
+        nested2: <Blob>,
+        nested3: [
+            'value6',
+            <Blob>
+        ],
+        nested4: {
+            deep1: 'value7',
+            deep2: <Blob>
+        }
+    }
+})
+
+fetch('http://...', {
+    method: 'POST',
+    body: formdata
+})
+```
+
+> The parsing should work with objects of any arbitrary depth. If it fails on some specific case, please open an Issue with the input and expected output.
+
+##  7. <a name='Contributing'></a>Contributing
 
 Clone the project and install the dependencies:
 
@@ -297,3 +434,7 @@ Before opening a PR, make sure the project builds, there are no linting errors a
 ```shell
 npm run check
 ```
+
+> Notice about tests: in order to guarantee data integrity on upload, the tests at the file `test/formdata_files.test.ts` create _a lot_ (~500) of files on the `/tmp` folder. It then uploads those files to the test server and compares the hashes. This requires around ~50mb max of hard drive. All the files are automatically deleted by the tests.
+>
+> You can take a look at `Test.makeFile` and `Test.rmFiles` to make sure you're comfortable with running it.

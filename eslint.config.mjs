@@ -27,7 +27,8 @@ export default tseslint.config(
 
             'indent': [ 'warn', 4 ],
             'linebreak-style': [ 'warn', 'unix' ],
-            'quotes': [ 'warn', 'single' ]
+            'quotes': [ 'warn', 'single' ],
+            'semi': [ 'warn', 'always' ]
         }
     }
 );

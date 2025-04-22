@@ -21,8 +21,8 @@ describe('multipart/form-data', () => {
             prop4: 'value4',
             prop5: 'value5',
             prop6: 'value6',
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse nested fields', async () => {
         const formdata = Test.makeFormdata([
@@ -41,8 +41,8 @@ describe('multipart/form-data', () => {
                 nested1: 'value3',
                 nested2: 'value4'
             }
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse deeply nested fields', async () => {
         const formdata = Test.makeFormdata([
@@ -77,8 +77,8 @@ describe('multipart/form-data', () => {
                     }
                 }
             },
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse arrays', async () => {
         const formdata = Test.makeFormdata([
@@ -91,8 +91,8 @@ describe('multipart/form-data', () => {
         expect(body).toEqual({
             prop1: ['value1', 'value2'],
             prop2: ['value3', 'value4']
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse nested arrays', async () => {
         const formdata = Test.makeFormdata([
@@ -106,8 +106,8 @@ describe('multipart/form-data', () => {
         const body = await Test.requestFormData(formdata);
         expect(body).toEqual({
             prop1: ['value1', 'value2', ['value3', 'value4', ['value5', 'value6']]],
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse nested arrays with multiple levels', async () => {
         const formdata = Test.makeFormdata([
@@ -121,8 +121,8 @@ describe('multipart/form-data', () => {
         const body = await Test.requestFormData(formdata);
         expect(body).toEqual({
             prop1: ['value1', ['value2'], 'value3', ['value4', 'value5'], 'value6'],
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse array of objects', async () => {
         const formdata = Test.makeFormdata([
@@ -143,8 +143,8 @@ describe('multipart/form-data', () => {
                     b: 'value4'
                 }
             ]
-        })
-    }, 10000)
+        });
+    }, 10000);
 
     it('Should parse complex objects', async () => {
         const formdata = Test.makeFormdata([
@@ -249,8 +249,204 @@ describe('multipart/form-data', () => {
                     }
                 }
             ]
-        })
-    }, 10000)
+        });
+    }, 10000);
+
+
+    it('Should "incorrectly" infer array of objects without ^ or +', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[][a]', 'value1'],
+            ['prop1[][b]', 'value2'],
+            ['prop1[][c]', 'value3'],
+            ['prop1[][c]', 'value4'],
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                {
+                    a: 'value1',
+                    b: 'value2',
+                    c: 'value3'
+                },
+                {
+                    c: 'value4'
+                }
+            ]
+        });
+    }, 10000);
+
+    it('Should parse array of disjoint objects with ^', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][a]', 'value1'],
+            ['prop1[][b]', 'value2'],
+            ['prop1[^][c]', 'value3'],
+            ['prop1[^][c]', 'value4']
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                {
+                    a: 'value1',
+                    b: 'value2',
+                },
+                {
+                    c: 'value3'
+                },
+                {
+                    c: 'value4'
+                }
+            ]
+        });
+    }, 10000);
+
+    it('Should parse array of disjoint objects with ^ and ~', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][a]', 'value1'],
+            ['prop1[~][b]', 'value2'],
+            ['prop1[^][c]', 'value3'],
+            ['prop1[^][c]', 'value4']
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                {
+                    a: 'value1',
+                    b: 'value2',
+                },
+                {
+                    c: 'value3'
+                },
+                {
+                    c: 'value4'
+                }
+            ]
+        });
+    }, 10000);
+
+    it('Should parse array of disjoint objects with ^ and ~ followed by an array', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][a]', 'value1'],
+            ['prop1[~][b]', 'value2'],
+            ['prop1[^][c]', 'value3'],
+            ['prop1[^][]', 'value4'],
+            ['prop1[~][]', 'value5']
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                {
+                    a: 'value1',
+                    b: 'value2',
+                },
+                {
+                    c: 'value3'
+                },
+                [
+                    'value4',
+                    'value5'
+                ]
+            ]
+        });
+    }, 10000);
+
+    it('Should parse array of objects with ^ and ~ followed by an array of objects', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][a]', 'value1'],
+            ['prop1[~][b]', 'value2'],
+            ['prop1[^][c]', 'value3'],
+            ['prop1[^][^][a]', 'value4'],
+            ['prop1[~][^][b]', 'value5']
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                {
+                    a: 'value1',
+                    b: 'value2',
+                },
+                {
+                    c: 'value3'
+                },
+                [
+                    {
+                        a: 'value4',
+                    },
+                    {
+                        b: 'value5'
+                    }
+                ]
+            ]
+        });
+    }, 10000);
+
+    it('Should parse disjoint arrays with ^ and ~', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][]', 'value1'],
+            ['prop1[~][]', 'value2'],
+            ['prop1[^][]', 'value3'],
+            ['prop1[^][]', 'value4']
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                [
+                    'value1',
+                    'value2',
+                ],
+                [
+                    'value3'
+                ],
+                [
+                    'value4'
+                ]
+            ]
+        });
+    }, 10000);
+
+    it('Should parse multi-level array with ^ and ~', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][a][]', 'value1'],
+            ['prop1[~][a][]', 'value2'],
+            ['prop1[~][b][]', 'value3'],
+            ['prop1[~][b][]', 'value4'],
+            ['prop1[~][b][^][]', 'value5'],
+            ['prop1[~][b][~][]', 'value6'],
+            ['prop1[^][c][]', 'value7'],
+            ['prop1[~][c][]', 'value8'],
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                {
+                    a: [ 'value1', 'value2' ],
+                    b: [ 'value3', 'value4', [ 'value5', 'value6' ] ]
+                },
+                {
+                    c: [ 'value7', 'value8' ]
+                }
+            ]
+        });
+    }, 10000);
+
+    it('Should ignore ^ and ~ at the final term of the path', async () => {
+        const formdata = Test.makeFormdata([
+            ['prop1[^][~]', 'value1'],
+            ['prop1[~][^]', 'value2'],
+            ['prop1[~][~]', 'value3'],
+            ['prop1[~][^]', 'value4']
+        ]) as any;
+        const body = await Test.requestFormData(formdata);
+        expect(body).toEqual({
+            prop1: [
+                [
+                    'value1',
+                    'value2',
+                    'value3',
+                    'value4'
+                ]
+            ]
+        });
+    }, 10000);
 
     Test.afterAll();
-})
+});

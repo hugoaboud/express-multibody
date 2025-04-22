@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { MultibodyFormData } from './formdata';
-import { MultibodyConfig } from './config';
+import { MultibodyConfig, MultibodyFile } from './config';
 import { MultibodyJSON } from './json';
 import fs from 'fs';
 import path from 'path';
@@ -25,13 +25,13 @@ import path from 'path';
  * @param config The `express-multibody` configuration. (see [reference](https://github.com/hugoaboud/express-multibody?tab=readme-ov-file#Configuration))
  * @returns 
  */
-export default function multibody<File = string>(config?: MultibodyConfig<File>) {
+export default function multibody<File = MultibodyFile>(config?: MultibodyConfig<File>) {
 
     // Create uploadDir if it doesn't exist
     if (config?.files?.mkDir === undefined || config.files.mkDir) {
         const dir = config?.files?.uploadDir ?? path.join(process.cwd(), 'tmp');
         if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir)
+            fs.mkdirSync(dir);
         }
     }
 
@@ -42,7 +42,7 @@ export default function multibody<File = string>(config?: MultibodyConfig<File>)
             
             const type = req.header('Content-Type');
             
-            // [multipart] consumed with busboy and parsed to
+            // [form-data] consumed with busboy and parsed to
             // an object structure
             if (type?.startsWith('multipart/form-data')) {
                 const input = await MultibodyFormData.consume(req, config ?? {});
@@ -60,7 +60,8 @@ export default function multibody<File = string>(config?: MultibodyConfig<File>)
             req.body = body;
             next();
         } catch (error) {
+            console.error(error);
             next(error);
         }
-    }
+    };
 }

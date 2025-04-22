@@ -7,7 +7,7 @@ describe('multipart/form-data (files)', () => {
     const toRemove = {
         client: [] as string[],
         server: [] as { delete: () => any }[]
-    }
+    };
 
     it('Should parse single file', async () => {
         const file = Test.makeFile('tmp/single_test.tmp');
@@ -18,13 +18,13 @@ describe('multipart/form-data (files)', () => {
         ]);
 
         const body = await Test.requestFormData(formdata);
-        toRemove.server.push(body.file_prop)
+        toRemove.server.push(body.file_prop);
 
         expect(body).toEqual({
             file_prop: await Test.expectedFile('file_prop', file)
-        })
+        });
 
-    }, 10000)
+    }, 10000);
 
     it('Should parse multiple files', async () => {
         const file1 = Test.makeFile('tmp/multiple_test1.tmp');
@@ -39,15 +39,15 @@ describe('multipart/form-data (files)', () => {
         ]);
 
         const body = await Test.requestFormData(formdata);
-        toRemove.server.push(body.file_prop1, body.file_prop2, body.file_prop3)
+        toRemove.server.push(body.file_prop1, body.file_prop2, body.file_prop3);
 
         expect(body).toEqual({
             file_prop1: await Test.expectedFile('file_prop1', file1),
             file_prop2: await Test.expectedFile('file_prop2', file2),
             file_prop3: await Test.expectedFile('file_prop3', file3)
-        })
+        });
 
-    }, 10000)
+    }, 10000);
     
     it('Should parse nested files', async () => {
         const file1 = Test.makeFile('tmp/nested_test1.tmp');
@@ -64,7 +64,7 @@ describe('multipart/form-data (files)', () => {
         ]);
 
         const body = await Test.requestFormData(formdata);
-        toRemove.server.push(body.prop1.file_prop1, body.prop1.file_prop2, body.prop2.file_prop1, body.prop2.file_prop2)
+        toRemove.server.push(body.prop1.file_prop1, body.prop1.file_prop2, body.prop2.file_prop1, body.prop2.file_prop2);
 
         expect(body).toEqual({
             prop1: {
@@ -75,9 +75,9 @@ describe('multipart/form-data (files)', () => {
                 file_prop1: await Test.expectedFile('prop2[file_prop1]', file3),
                 file_prop2: await Test.expectedFile('prop2[file_prop2]', file4),
             }
-        })
+        });
 
-    }, 10000)
+    }, 10000);
 
     it('Should parse array of files', async () => {
         const file1 = Test.makeFile('tmp/array_test1.tmp');
@@ -92,7 +92,7 @@ describe('multipart/form-data (files)', () => {
         ]);
 
         const body = await Test.requestFormData(formdata);
-        toRemove.server.push(...body.files_prop)
+        toRemove.server.push(...body.files_prop);
 
         expect(body).toEqual({
             files_prop: [
@@ -100,9 +100,9 @@ describe('multipart/form-data (files)', () => {
                 await Test.expectedFile('files_prop[]', file2),
                 await Test.expectedFile('files_prop[]', file3)
             ]
-        })
+        });
 
-    }, 10000)
+    }, 10000);
 
     it('Should parse array of objects containing files', async () => {
         const file1 = Test.makeFile('tmp/objarray_test1.tmp');
@@ -119,7 +119,7 @@ describe('multipart/form-data (files)', () => {
         ]);
 
         const body = await Test.requestFormData(formdata);
-        toRemove.server.push(...body.prop1.map((p: any) => [p.file_prop1, p.file_prop2]).flat(1))
+        toRemove.server.push(...body.prop1.map((p: any) => [p.file_prop1, p.file_prop2]).flat(1));
 
         expect(body).toEqual({
             prop1: [
@@ -132,9 +132,9 @@ describe('multipart/form-data (files)', () => {
                     file_prop2: await Test.expectedFile('prop1[][file_prop2]', file4),
                 }
             ]
-        })
+        });
 
-    }, 10000)
+    }, 10000);
 
 
     // This test ensures the ordering of files remains the same
@@ -144,29 +144,29 @@ describe('multipart/form-data (files)', () => {
     it('Should parse big (512 = 32mb) array of files', async () => {
         const files = Array.from({length: 512}).map((_,i) =>
             Test.makeFile(`tmp/bigarray_test${i}.tmp`, 64*1024)
-        )
+        );
         toRemove.client.push(...files.map(f => f.filepath));
 
         const formdata = Test.makeFormdata(files.map(f =>
             ['files_prop[]', f]
-        ))
+        ));
 
         const body = await Test.requestFormData(formdata);
-        toRemove.server.push(...body.files_prop)
+        toRemove.server.push(...body.files_prop);
 
         const files_prop: any[] = [];
         for (const file of files) {
             files_prop.push(
                 await Test.expectedFile('files_prop[]', file)
-            )
+            );
         }
 
-        expect(body).toEqual({ files_prop })
+        expect(body).toEqual({ files_prop });
 
-    }, 30000)
+    }, 30000);
 
     afterAll(() => {
         Test.rmFiles(toRemove.client, toRemove.server);
-    })
+    });
     Test.afterAll();
-})
+});

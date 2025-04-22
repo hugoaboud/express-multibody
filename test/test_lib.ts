@@ -9,8 +9,8 @@ export type TestCallback = (body: Record<string, any>) => void
 
 export class Test {
 
-    public static PORT = 3420
-    public static server?: Server
+    public static PORT = 3420;
+    public static server?: Server;
 
     /**
      * Given that we want the "server side" parsed object, and
@@ -25,8 +25,8 @@ export class Test {
 
     public static beforeAll() {
         beforeAll(async () => {
-            await Test.app()
-        })
+            await Test.app();
+        });
     }
 
     public static afterAll() {
@@ -34,7 +34,7 @@ export class Test {
             new Promise<void>(resolve => {
                 this.server?.close(() => { resolve(); });
             })
-        )
+        );
     }
 
     public static rmFiles(clientFiles: string[], serverFiles: {delete: ()=>void}[]) {
@@ -49,16 +49,16 @@ export class Test {
     /* Data makers */
 
     public static makeFormdata(input: [string, string|{blob: Blob, filename: string}][]) {
-        const multipart = new FormData();
+        const formdata = new FormData();
         input.forEach(d => {
             if (typeof d[1] === 'string') {
-                multipart.append(d[0],d[1]);
+                formdata.append(d[0],d[1]);
             }
             else {
-                multipart.append(d[0],d[1].blob,d[1].filename);
+                formdata.append(d[0],d[1].blob,d[1].filename);
             }
-        })
-        return multipart;
+        });
+        return formdata;
     }
 
     public static makeFile(
@@ -75,7 +75,7 @@ export class Test {
             blob: new Blob([file]),
             filename: tmpFilename,
             filepath: tmpPath
-        }
+        };
     }
     
     /* App */
@@ -84,7 +84,7 @@ export class Test {
         return new Promise<void>((resolve) => {      
             if (this.server) {
                 resolve();
-                return
+                return;
             }
 
             const app = express();
@@ -98,12 +98,12 @@ export class Test {
                 const id = req.query['id'] as string;
                 this.useCallback(id, req.body);
                 res.send();
-            })
+            });
 
             this.server = app.listen(Test.PORT, () => {
                 resolve();
             });
-        })
+        });
     }
 
     private static async parseFile(key: string, filepath: string, original: any) {
@@ -111,7 +111,7 @@ export class Test {
         const _delete = () => {
             if (fs.existsSync(filepath)) fs.rmSync(filepath);
         };
-        return { key, filepath, original, hash, delete: _delete }
+        return { key, filepath, original, hash, delete: _delete };
     } 
 
     /* Request */
@@ -123,14 +123,14 @@ export class Test {
                 'content-type': 'application/json'
             },
             body: JSON.stringify(body)
-        })
+        });
     }
     
     public static requestFormData(body: FormData) {
         return this.fetch({
             method: 'POST',
             body: body as any
-        })
+        });
     }
 
     /* Expect Helpers */
@@ -147,7 +147,7 @@ export class Test {
             },
             hash,
             delete: expect.anything()
-        }
+        };
     } 
 
     /* Internals */
@@ -167,11 +167,11 @@ export class Test {
     private static fetch(init?: RequestInit  ) {
         return new Promise<Record<string, any>>(resolve => {
             let body: Record<string, any>;
-            const id = this.saveCallback(out => { body = out });
+            const id = this.saveCallback(out => { body = out; });
             void fetch(`http://127.0.0.1:${Test.PORT}/test?id=${id}`, init).then(() => {
                 resolve(body);
-            })
-        })
+            });
+        });
     }
 }
 
@@ -187,7 +187,7 @@ export class Hash {
                 resolve(hash.read());
             });
             fd.pipe(hash);
-        })
+        });
     }
 
 }

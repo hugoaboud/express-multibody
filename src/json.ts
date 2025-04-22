@@ -25,12 +25,12 @@ export class MultibodyJSON {
                     return;
                 }
                 chunks.push(chunk);
-            })
+            });
             req.on('end', () => {
                 const data = Buffer.concat(chunks).toString();
                 resolve(JSON.parse(data));
-            })
-        })
+            });
+        });
     }
 
 }
